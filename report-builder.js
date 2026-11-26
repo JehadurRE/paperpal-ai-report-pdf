@@ -1,8 +1,7 @@
 /**
- * Shared standalone HTML report builder used by BOTH background.js (for CDP
- * Page.printToPDF on about:blank) and report.js (for Download HTML).
- * Produces a 100% self-contained, print-ready HTML document with exact Paperpal
- * highlight styles and clean pagination.
+ * Shared standalone HTML report builder (v1.1.0) used by BOTH background.js
+ * (for CDP Page.printToPDF on about:blank) and report.js (for Preview & HTML).
+ * Supports both AI Detection reports and Plagiarism Free Overview cards.
  */
 ((globalScope) => {
   function escapeHtml(str) {
@@ -29,7 +28,380 @@
     return fallback;
   }
 
-  function buildStandaloneReportHtml(payload, settings = {}) {
+  function buildPlagiarismOverviewHtml(payload, settings = {}) {
+    const pageSize = settings.pageSize === "a4" ? "A4 portrait" : "letter portrait";
+    const includeSourceFooter = settings.includeSourceFooter !== false;
+
+    const p = payload.plagiarism || {};
+    const shortTitle = (payload.docTitle || "Document").slice(0, 68);
+    const footerLabel = escapeCssString(`Paperpal Plagiarism Check Overview — ${shortTitle}`);
+
+    const rangeBg = safeColor(p.rangeBg, "rgb(255, 232, 232)");
+    const rangeColor = safeColor(p.rangeColor, "rgb(204, 36, 75)");
+    const rangeBorder = safeColor(p.rangeBorder, "rgb(204, 36, 75)");
+
+    const sourcesRowsHtml = (p.visibleSources || [])
+      .map(
+        (s) => `
+      <tr>
+        <td class="col-rank"><span class="rank-badge" style="background:${safeColor(s.badgeBg, "rgb(51, 93, 192)")}">${escapeHtml(s.rank)}</span></td>
+        <td class="col-domain">
+          <div class="domain-name">${escapeHtml(s.domain)}</div>
+          <div class="domain-type">${escapeHtml(s.sourceType)}</div>
+        </td>
+        <td class="col-pct">${escapeHtml(s.percent)}</td>
+      </tr>`
+      )
+      .join("");
+
+    const additionalNoticeHtml = p.additionalSourcesText
+      ? `<div class="locked-note"><strong>${escapeHtml(p.additionalSourcesText)}</strong> &mdash; Additional sources and sentence-level matched passages are locked on Paperpal's free overview tier and are not displayed on the page.</div>`
+      : `<div class="locked-note">Detailed sentence-level matched passages require a Paperpal paid plan and are not rendered on the free overview page.</div>`;
+
+    const footerHtml = includeSourceFooter
+      ? `
+  <footer class="report-footer-note">
+    <strong>Source URL:</strong> ${escapeHtml(payload.url || "")}<br/>
+    Exported directly from the visible Paperpal Plagiarism Free Overview card in Chrome. Locked sources and matched passages behind Paperpal's upgrade gate remain excluded.
+  </footer>`
+      : "";
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Paperpal Plagiarism Overview — ${escapeHtml(shortTitle)}</title>
+<style>
+  @page {
+    size: ${pageSize};
+    margin: 0.6in 0.65in 0.65in 0.65in;
+    @bottom-left {
+      content: "${footerLabel}";
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 8pt;
+      color: #64748b;
+    }
+    @bottom-right {
+      content: "Page " counter(page) " of " counter(pages);
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 8pt;
+      color: #64748b;
+    }
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+    color: #051e57;
+    font-family: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.5;
+  }
+
+  .report-header {
+    border-bottom: 2px solid #1c4dc0;
+    padding-bottom: 12px;
+    margin-bottom: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+  }
+
+  .brand-kicker {
+    font-size: 8.5pt;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #1c4dc0;
+    margin-bottom: 3px;
+  }
+
+  .title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .report-title {
+    font-size: 18pt;
+    font-weight: 700;
+    color: #051e57;
+    margin: 0;
+    line-height: 1.2;
+  }
+
+  .mode-pill {
+    display: inline-block;
+    background: #1c4dc0;
+    color: #ffffff;
+    font-size: 8.5pt;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 5px;
+  }
+
+  .report-subtitle {
+    font-size: 9.5pt;
+    color: #475569;
+    margin: 4px 0 0 0;
+  }
+
+  .meta-right {
+    text-align: right;
+    font-size: 8pt;
+    color: #475569;
+    line-height: 1.45;
+    flex-shrink: 0;
+  }
+
+  .meta-right strong { color: #051e57; }
+
+  .overview-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .card {
+    border: 1px solid #d9e2f3;
+    border-radius: 10px;
+    padding: 15px 17px;
+    background: #ffffff;
+  }
+
+  .card-title {
+    font-size: 10.5pt;
+    font-weight: 700;
+    color: #051e57;
+    margin: 0 0 10px 0;
+  }
+
+  .range-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .range-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 22px;
+    border-radius: 999px;
+    border: 1.5px solid ${rangeBorder};
+    background: ${rangeBg};
+    color: ${rangeColor};
+    font-size: 18pt;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .status-label {
+    font-size: 9.5pt;
+    font-weight: 600;
+    color: #051e57;
+    margin: 0 0 4px 0;
+  }
+
+  .status-sub {
+    font-size: 8.5pt;
+    color: #475569;
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  .doc-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+
+  .doc-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: #1c4dc0;
+    color: #ffffff;
+    font-size: 11pt;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .doc-name {
+    font-size: 9.2pt;
+    font-weight: 600;
+    color: #051e57;
+    overflow-wrap: anywhere;
+  }
+
+  .rec-text {
+    font-size: 8.6pt;
+    color: #334155;
+    margin: 0;
+    line-height: 1.45;
+  }
+
+  .section-title {
+    font-size: 11.5pt;
+    font-weight: 700;
+    color: #051e57;
+    margin: 0 0 10px 0;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #cbd5e1;
+  }
+
+  table.sources-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 14px;
+  }
+
+  table.sources-table th {
+    text-align: left;
+    font-size: 8.2pt;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    padding: 7px 10px;
+    border-bottom: 1.5px solid #d9e2f3;
+    background: #f8fafc;
+  }
+
+  table.sources-table td {
+    padding: 10px;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: middle;
+  }
+
+  .col-rank { width: 52px; }
+  .col-pct { width: 90px; text-align: right; font-weight: 700; font-size: 10.5pt; color: #051e57; }
+  th.col-pct { text-align: right; }
+
+  .rank-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 9.5pt;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .domain-name {
+    font-size: 10pt;
+    font-weight: 600;
+    color: #051e57;
+  }
+
+  .domain-type {
+    font-size: 7.8pt;
+    color: #64748b;
+    letter-spacing: 0.04em;
+  }
+
+  .locked-note {
+    background: #f8fafc;
+    border: 1px dashed #94a3b8;
+    border-radius: 8px;
+    padding: 10px 13px;
+    font-size: 8.6pt;
+    color: #475569;
+    line-height: 1.45;
+  }
+
+  .locked-note strong { color: #051e57; }
+
+  .report-footer-note {
+    margin-top: 22px;
+    padding-top: 10px;
+    border-top: 1px solid #cbd5e1;
+    font-size: 8pt;
+    color: #64748b;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+</style>
+</head>
+<body>
+  <header class="report-header">
+    <div>
+      <div class="brand-kicker">Paperpal &bull; Plagiarism Check (Free Overview)</div>
+      <div class="title-row">
+        <h1 class="report-title">Plagiarism Check Overview</h1>
+        <span class="mode-pill">${escapeHtml(p.checkMode || "Standard")}</span>
+      </div>
+      <p class="report-subtitle">Visible similarity range and top displayed internet sources</p>
+    </div>
+    <div class="meta-right">
+      <div><strong>Date Captured:</strong> ${escapeHtml(payload.capturedDateFormatted || "")}</div>
+      ${payload.reportId ? `<div><strong>Report ID:</strong> ${escapeHtml(payload.reportId)}</div>` : ""}
+      <div><strong>Report Tier:</strong> Free Overview</div>
+    </div>
+  </header>
+
+  <section class="overview-grid">
+    <div class="card">
+      <h2 class="card-title">Similarity Range</h2>
+      <div class="range-box">
+        <div>
+          <p class="status-label">${escapeHtml(p.statusLine || "Similarity overview")}</p>
+          <p class="status-sub">Estimated overlap range reported by Paperpal's Standard Plagiarism Check.</p>
+        </div>
+        <div class="range-pill">${escapeHtml(p.rangeText || "—")}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 class="card-title">Uploaded Document</h2>
+      <div class="doc-pill">
+        <span class="doc-badge">W</span>
+        <span class="doc-name">${escapeHtml(payload.docFilename || payload.docTitle || "Document")}</span>
+      </div>
+      ${p.recommendationText ? `<p class="rec-text">${escapeHtml(p.recommendationText)}</p>` : ""}
+    </div>
+  </section>
+
+  <h2 class="section-title">Visible Sources for Similarity</h2>
+  <table class="sources-table">
+    <thead>
+      <tr>
+        <th class="col-rank">#</th>
+        <th>Source Domain &amp; Category</th>
+        <th class="col-pct">Match</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${sourcesRowsHtml || `<tr><td colspan="3" style="color:#64748b;">No unmasked sources displayed on this page.</td></tr>`}
+    </tbody>
+  </table>
+
+  ${additionalNoticeHtml}
+  ${footerHtml}
+</body>
+</html>`;
+  }
+
+  function buildAiDetectionHtml(payload, settings = {}) {
     const pageSize = settings.pageSize === "a4" ? "A4 portrait" : "letter portrait";
     const includeSummary = settings.includeSummary !== false;
     const includeSourceFooter = settings.includeSourceFooter !== false;
@@ -193,9 +565,7 @@
     flex-shrink: 0;
   }
 
-  .meta-right strong {
-    color: #051e57;
-  }
+  .meta-right strong { color: #051e57; }
 
   .summary-grid {
     display: grid;
@@ -227,16 +597,8 @@
     margin-bottom: 8px;
   }
 
-  .score-num {
-    font-size: 28pt;
-    font-weight: 700;
-    line-height: 1;
-  }
-
-  .score-pct {
-    font-size: 14pt;
-    font-weight: 700;
-  }
+  .score-num { font-size: 28pt; font-weight: 700; line-height: 1; }
+  .score-pct { font-size: 14pt; font-weight: 700; }
 
   .verdict-pill {
     border-radius: 7px;
@@ -249,46 +611,17 @@
     border-style: solid;
   }
 
-  .partial-note {
-    font-size: 8.3pt;
-    color: #475569;
-    line-height: 1.4;
-    margin: 0;
-  }
+  .partial-note { font-size: 8.3pt; color: #475569; line-height: 1.4; margin: 0; }
 
-  .legend-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .legend-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 9px;
-    font-size: 8.4pt;
-    line-height: 1.35;
-  }
-
-  .swatch {
-    width: 15px;
-    height: 15px;
-    border-radius: 4px;
-    flex-shrink: 0;
-    margin-top: 1px;
-    border: 1px solid rgba(5, 30, 87, 0.14);
-  }
-
+  .legend-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .legend-item { display: flex; align-items: flex-start; gap: 9px; font-size: 8.4pt; line-height: 1.35; }
+  .swatch { width: 15px; height: 15px; border-radius: 4px; flex-shrink: 0; margin-top: 1px; border: 1px solid rgba(5, 30, 87, 0.14); }
   .swatch-ai { background-color: rgba(204, 36, 75, 0.25); border-color: rgba(204, 36, 75, 0.55); }
   .swatch-mostly-ai { background-color: rgba(255, 199, 156, 0.75); border-color: rgba(217, 119, 6, 0.55); }
   .swatch-blend-mid { background-color: rgba(255, 225, 148, 0.85); border-color: rgba(202, 138, 4, 0.55); }
   .swatch-mostly-human { background-color: rgba(255, 248, 155, 0.65); border-color: rgba(202, 168, 0, 0.6); }
   .swatch-human { background-color: rgba(8, 151, 56, 0.22); border-color: rgba(8, 151, 56, 0.5); }
   .swatch-unprocessed { background-color: #f8fafc; border: 1px dashed #94a3b8; }
-
   .legend-label { font-weight: 700; color: #051e57; }
   .legend-desc { color: #475569; }
 
@@ -352,21 +685,9 @@
     page-break-after: avoid;
   }
 
-  .ai-detection-report .ProseMirror > p:first-child {
-    margin-top: 0 !important;
-  }
-
-  .ai-detection-report .ProseMirror p span {
-    font-size: 11pt !important;
-    line-height: 1.48 !important;
-  }
-
-  .ai-detection-report .ProseMirror a {
-    color: rgb(28, 77, 192);
-    text-decoration: underline;
-    overflow-wrap: anywhere;
-  }
-
+  .ai-detection-report .ProseMirror > p:first-child { margin-top: 0 !important; }
+  .ai-detection-report .ProseMirror p span { font-size: 11pt !important; line-height: 1.48 !important; }
+  .ai-detection-report .ProseMirror a { color: rgb(28, 77, 192); text-decoration: underline; overflow-wrap: anywhere; }
   .ai-detection-report .ProseMirror a span { color: inherit; }
 
   .ai-detection-report .ai-detection {
@@ -427,6 +748,13 @@
   ${footerHtml}
 </body>
 </html>`;
+  }
+
+  function buildStandaloneReportHtml(payload, settings = {}) {
+    if (payload && payload.reportKind === "plagiarism-overview") {
+      return buildPlagiarismOverviewHtml(payload, settings);
+    }
+    return buildAiDetectionHtml(payload, settings);
   }
 
   globalScope.__paperpalBuildStandaloneHtml = buildStandaloneReportHtml;

@@ -1,10 +1,17 @@
 /**
- * Paperpal Visible Report DOM Extractor
+ * Paperpal Visible Report DOM Extractor (v1.1.0)
+ * Supports:
+ *   1. AI Detection Report (/ai-detector/report/*)
+ *   2. Plagiarism Free Overview Report (/p/free-report/*)
+ *
  * Reads ONLY visibly rendered report elements already displayed in the browser.
- * Does NOT unblur, inspect hidden API responses, or alter Paperpal's page state.
+ * Strictly excludes locked/blurred/gradient-masked elements and never modifies
+ * Paperpal's live DOM or bypasses subscription limits.
  */
 (() => {
-  if (window.__paperpalVisibleReportExtractor) return;
+  if (window.__paperpalVisibleReportExtractor && window.__paperpalVisibleReportExtractor.version === "1.1.0") {
+    return;
+  }
 
   const ALLOWED_TAGS = new Set([
     "P", "SPAN", "STRONG", "B", "EM", "I", "U", "A", "BR",
@@ -63,15 +70,27 @@
     }
   ];
 
+  function getReportKind() {
+    if (location.hostname !== "edit.paperpal.com") return null;
+    if (location.pathname.startsWith("/ai-detector/report/")) return "ai-detection";
+    if (location.pathname.startsWith("/p/free-report/")) return "plagiarism-overview";
+    return null;
+  }
+
   function isReportPage() {
-    return (
-      location.hostname === "edit.paperpal.com" &&
-      location.pathname.startsWith("/ai-detector/report/")
-    );
+    return Boolean(getReportKind());
   }
 
   function cleanText(str) {
     return (str || "").replace(/\s+/g, " ").trim();
+  }
+
+  function formatToday() {
+    return new Date().toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    });
   }
 
   function sanitizeNode(node, doc) {
@@ -90,7 +109,6 @@
     const targetTag = ALLOWED_TAGS.has(tag) ? tag.toLowerCase() : "span";
     const el = doc.createElement(targetTag);
 
-    // Keep only safe highlight / layout classes
     if (typeof node.className === "string" && node.className.trim()) {
       const kept = node.className
         .trim()
@@ -101,7 +119,6 @@
       }
     }
 
-    // Preserve safe text-align on block elements
     if (tag === "P" || /^H[1-6]$/.test(tag)) {
       const align = node.style && node.style.textAlign;
       if (align && ["left", "center", "right", "justify"].includes(align)) {
@@ -109,7 +126,6 @@
       }
     }
 
-    // Preserve safe href on links
     if (targetTag === "a") {
       const href = node.getAttribute("href") || "";
       if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href)) {
@@ -119,7 +135,6 @@
       }
     }
 
-    // Preserve visible hover tooltip label (strictly never copy data-ai-score)
     const tooltip = node.getAttribute("data-tooltip-label");
     if (tooltip) {
       el.setAttribute("title", tooltip);
@@ -138,7 +153,6 @@
     for (const p of paragraphs) {
       const txt = cleanText(p.textContent);
       if (!txt || txt.length > 110) continue;
-      // Skip memo header key-value fields and bullet items
       if (/^(TO|FROM|DATE|SUBJECT|MEMO|MEMORANDUM):/i.test(txt)) continue;
       if (/^[•\-*]\s/.test(txt)) continue;
       if (/[.?!]$/.test(txt)) continue;
@@ -156,13 +170,11 @@
       .map((el) => cleanText(el.textContent))
       .filter(Boolean);
 
-    // Prefer SUBJECT line if this is a memo
     const subj = paragraphs.find((line) => /^SUBJECT:\s*/i.test(line));
     if (subj) {
       return subj.replace(/^SUBJECT:\s*/i, "").trim().slice(0, 120);
     }
 
-    // Otherwise first substantive line (> 8 chars)
     const firstTitle = paragraphs.find((line) => line.length >= 8 && !/^(TO|FROM|DATE):/i.test(line));
     if (firstTitle) {
       return firstTitle.slice(0, 120);
@@ -171,8 +183,7 @@
     return `Paperpal AI Detection Report (${reportId || "document"})`;
   }
 
-  function extractVisibleSummary() {
-    // 1. Locate "AI Writing Identified" card
+  function extractAiSummary() {
     const aiHeading = Array.from(document.querySelectorAll("*")).find(
       (el) => el.children.length === 0 && cleanText(el.textContent) === "AI Writing Identified"
     );
@@ -195,7 +206,6 @@
     let checkNote = "";
 
     if (aiCard) {
-      // Extract percentage digits
       const lines = (aiCard.innerText || "")
         .split("\n")
         .map((l) => l.trim())
@@ -206,7 +216,6 @@
         scoreValue = pctMatch[1];
       }
 
-      // Find exact rendered color of score number (handles nested <span>%</span> inside <p>)
       const scoreEl = Array.from(aiCard.querySelectorAll("*")).find((el) => {
         const t = cleanText(el.textContent);
         if (!/^\d{1,3}\s*%?$/.test(t)) return false;
@@ -217,7 +226,6 @@
         scoreColor = getComputedStyle(scoreEl).color || scoreColor;
       }
 
-      // Find verdict callout box
       const verdictEl = Array.from(aiCard.querySelectorAll("div, p, span")).find((el) => {
         const t = cleanText(el.textContent);
         return (
@@ -241,20 +249,17 @@
         }
       }
 
-      // Find partial/full analysis note
       const noteLine = lines.find((l) => /words analyzed|partial check|full analysis|words checked/i.test(l));
       if (noteLine) {
         checkNote = noteLine;
       }
     }
 
-    // 2. Words scanned footer under editor
     const wordsScannedEl = Array.from(document.querySelectorAll("*")).find(
       (el) => el.children.length === 0 && /\d+\s+of\s+\d+\s+words\s+scanned/i.test(el.textContent)
     );
     const wordsScannedText = wordsScannedEl ? cleanText(wordsScannedEl.textContent) : "";
 
-    // 3. Top Document Health Check bar (only visible non-blurred values)
     const healthMetrics = [];
     const healthBar = Array.from(document.querySelectorAll("div")).find(
       (d) =>
@@ -275,7 +280,6 @@
       }
     }
 
-    // 4. Visible disclaimer
     const disclaimerEl = Array.from(document.querySelectorAll("*")).find(
       (el) => el.children.length === 0 && /^Disclaimer:/i.test(el.textContent.trim())
     );
@@ -296,14 +300,7 @@
     };
   }
 
-  function extractReportData() {
-    if (!isReportPage()) {
-      return {
-        ok: false,
-        error: "Open a Paperpal AI Detection report page (edit.paperpal.com/ai-detector/report/...) first."
-      };
-    }
-
+  function extractAiDetectionReport() {
     const editorContainer = document.getElementById("ai-detection-editor-container");
     const prose = editorContainer
       ? editorContainer.querySelector(".ProseMirror") ||
@@ -323,7 +320,6 @@
     const params = new URLSearchParams(location.search);
     const requestId = params.get("requestId") || "";
 
-    // Build sanitized DOM clone
     const sandboxDoc = document.implementation.createHTMLDocument("");
     const wrapper = sandboxDoc.createElement("div");
     for (const child of Array.from(prose.childNodes)) {
@@ -332,7 +328,6 @@
     }
     tagSectionHeadings(wrapper);
 
-    // Detect which highlight classes actually appear in this document
     const presentClasses = new Set();
     for (const item of HIGHLIGHT_CATALOG) {
       if (wrapper.querySelector(`.${item.cls}`)) {
@@ -340,7 +335,6 @@
       }
     }
 
-    // Always include core classes (AI-written, Human-written) plus any blend/unprocessed classes found
     const legendItems = HIGHLIGHT_CATALOG.filter(
       (item) =>
         item.cls === "ai-origin-text" ||
@@ -348,7 +342,7 @@
         presentClasses.has(item.cls)
     );
 
-    const summary = extractVisibleSummary();
+    const summary = extractAiSummary();
     const docTitle = extractDocumentTitle(prose, reportId);
     const paragraphCount = wrapper.querySelectorAll("p, h1, h2, h3, h4, li").length;
     const plainText = (prose.innerText || "").trim();
@@ -356,15 +350,12 @@
 
     return {
       ok: true,
+      reportKind: "ai-detection",
       reportId,
       requestId,
       url: location.href,
       capturedAt: new Date().toISOString(),
-      capturedDateFormatted: new Date().toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric"
-      }),
+      capturedDateFormatted: formatToday(),
       docTitle,
       paragraphCount,
       approxWordCount,
@@ -374,7 +365,168 @@
     };
   }
 
+  function extractPlagiarismOverviewReport() {
+    const fullCandidates = Array.from(document.querySelectorAll("div, section, main"))
+      .filter(
+        (el) =>
+          el.innerText &&
+          el.innerText.includes("Similarity range") &&
+          el.innerText.includes("Sources for similarity") &&
+          el.innerText.includes("Uploaded Documents")
+      )
+      .sort((a, b) => a.innerText.length - b.innerText.length);
+
+    const fallbackCandidates = Array.from(document.querySelectorAll("div, section, main"))
+      .filter(
+        (el) =>
+          el.innerText &&
+          el.innerText.includes("Similarity range") &&
+          el.innerText.includes("Sources for similarity")
+      )
+      .sort((a, b) => a.innerText.length - b.innerText.length);
+
+    const card = fullCandidates[0] || fallbackCandidates[0];
+    if (!card) {
+      return {
+        ok: false,
+        error: "Could not find the rendered Plagiarism overview card yet. Wait for the page to finish loading and try again."
+      };
+    }
+
+    const pathMatch = location.pathname.match(/\/p\/free-report\/([^/?#]+)/);
+    const reportId = pathMatch ? pathMatch[1] : "";
+
+    const modeEl = Array.from(card.querySelectorAll("*")).find(
+      (el) => el.children.length === 0 && /^(Standard|Academic|Strict)$/i.test(el.textContent.trim())
+    );
+    const checkMode = modeEl ? modeEl.textContent.trim() : "Standard";
+
+    const rangeEl = Array.from(card.querySelectorAll("*"))
+      .filter((el) => /^\d{1,3}\s*%\s*[-–]\s*\d{1,3}\s*%$|^\d{1,3}\s*%$/.test((el.textContent || "").trim()))
+      .sort((a, b) => a.children.length - b.children.length)[0];
+
+    const rangeText = rangeEl ? cleanText(rangeEl.textContent) : "—";
+    const rangeStyle = rangeEl ? getComputedStyle(rangeEl) : null;
+    const rangeBg = rangeStyle && rangeStyle.backgroundColor !== "rgba(0, 0, 0, 0)"
+      ? rangeStyle.backgroundColor
+      : "rgb(255, 232, 232)";
+    const rangeColor = rangeStyle ? rangeStyle.color : "rgb(204, 36, 75)";
+    const rangeBorder = rangeStyle && rangeStyle.borderColor !== "rgba(0, 0, 0, 0)"
+      ? rangeStyle.borderColor
+      : "rgb(204, 36, 75)";
+
+    const statusLineEl = Array.from(card.querySelectorAll("*")).find(
+      (el) => el.children.length === 0 && /similarity detected|no similarity/i.test(el.textContent.trim())
+    );
+    const statusLine = statusLineEl ? cleanText(statusLineEl.textContent) : "Similarity overview";
+
+    // Detect gradient lock overlay so we strictly exclude any faded/masked source rows beneath it
+    const overlays = Array.from(card.querySelectorAll("div"))
+      .filter((d) => {
+        const bg = getComputedStyle(d).backgroundImage;
+        return bg && bg.includes("gradient");
+      })
+      .map((d) => d.getBoundingClientRect());
+
+    const maskTop = overlays.length ? Math.min(...overlays.map((r) => r.top)) : Infinity;
+
+    const seenRanks = new Set();
+    const visibleSources = [];
+    const candidateRows = Array.from(card.querySelectorAll("div, li")).filter((el) => {
+      const lines = (el.innerText || "")
+        .trim()
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
+      return lines.length === 4 && /^\d+$/.test(lines[0]) && /^\d{1,3}%$/.test(lines[3]);
+    });
+
+    for (const el of candidateRows) {
+      const lines = el.innerText
+        .trim()
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
+      const rank = lines[0];
+      if (seenRanks.has(rank)) continue;
+
+      const rect = el.getBoundingClientRect();
+      const midY = (rect.top + rect.bottom) / 2;
+      // Respect Paperpal's fade/lock overlay: omit rows obscured under the gradient mask
+      if (midY >= maskTop) continue;
+
+      seenRanks.add(rank);
+      const numEl = Array.from(el.querySelectorAll("*")).find(
+        (c) => c.textContent.trim() === rank && getComputedStyle(c).backgroundColor !== "rgba(0, 0, 0, 0)"
+      );
+      visibleSources.push({
+        rank,
+        domain: lines[1],
+        sourceType: lines[2],
+        percent: lines[3],
+        badgeBg: numEl ? getComputedStyle(numEl).backgroundColor : "rgb(51, 93, 192)"
+      });
+    }
+
+    const docFileEl = Array.from(card.querySelectorAll("*")).find(
+      (el) => el.children.length === 0 && /\.(docx?|pdf|txt|rtf|odt)$/i.test(el.textContent.trim())
+    );
+    const docFilename = docFileEl ? cleanText(docFileEl.textContent) : `Plagiarism_Report_${reportId}`;
+    const docTitle = docFilename.replace(/\.(docx?|pdf|txt|rtf|odt)$/i, "");
+
+    const recEl = Array.from(card.querySelectorAll("*"))
+      .filter((el) => {
+        const t = cleanText(el.textContent);
+        return /^We recommend/i.test(t) && t.length < 180;
+      })
+      .sort((a, b) => a.textContent.length - b.textContent.length)[0];
+    const recommendationText = recEl ? cleanText(recEl.textContent) : "";
+
+    const addlEl = Array.from(card.querySelectorAll("*"))
+      .filter((el) => {
+        const t = cleanText(el.textContent);
+        return /^\d+\s+Additional sources identified/i.test(t) && t.length < 80;
+      })
+      .sort((a, b) => a.textContent.length - b.textContent.length)[0];
+    const additionalSourcesText = addlEl ? cleanText(addlEl.textContent) : "";
+
+    return {
+      ok: true,
+      reportKind: "plagiarism-overview",
+      reportId,
+      url: location.href,
+      capturedAt: new Date().toISOString(),
+      capturedDateFormatted: formatToday(),
+      docTitle,
+      docFilename,
+      plagiarism: {
+        checkMode,
+        rangeText,
+        rangeBg,
+        rangeColor,
+        rangeBorder,
+        statusLine,
+        recommendationText,
+        additionalSourcesText,
+        visibleSources
+      }
+    };
+  }
+
+  function extractReportData() {
+    const kind = getReportKind();
+    if (kind === "ai-detection") return extractAiDetectionReport();
+    if (kind === "plagiarism-overview") return extractPlagiarismOverviewReport();
+    return {
+      ok: false,
+      error:
+        "Open a Paperpal AI Detection report (/ai-detector/report/...) or Plagiarism Free Overview (/p/free-report/...) first."
+    };
+  }
+
   window.__paperpalVisibleReportExtractor = {
+    version: "1.1.0",
+    getReportKind,
     isReportPage,
     extractReportData
   };

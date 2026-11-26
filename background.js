@@ -19,15 +19,19 @@ async function getSettings() {
   return { ...DEFAULT_SETTINGS, ...stored };
 }
 
-function slugifyFilename(title, reportId) {
-  const base = (title || reportId || "Paperpal_Report")
+function slugifyFilename(payload) {
+  const prefix =
+    payload && payload.reportKind === "plagiarism-overview"
+      ? "Paperpal_Plagiarism_Overview"
+      : "Paperpal_AI_Report";
+  const base = (payload.docTitle || payload.reportId || "Report")
     .replace(/[<>:"/\\|?*\x00-\x1F]/g, " ")
     .replace(/\s+/g, "_")
     .replace(/_+/g, "_")
     .replace(/^_|_$/g, "")
     .slice(0, 64);
   const dateStr = new Date().toISOString().slice(0, 10);
-  return `Paperpal_AI_Report_${base || "Report"}_${dateStr}.pdf`;
+  return `${prefix}_${base || "Report"}_${dateStr}.pdf`;
 }
 
 function waitForTabComplete(tabId, timeoutMs = 8000) {
@@ -121,7 +125,7 @@ async function generatePdfFromPayload(payload, overrideSettings = {}) {
       throw new Error("Chrome returned empty PDF data.");
     }
 
-    const filename = slugifyFilename(payload.docTitle, payload.reportId);
+    const filename = slugifyFilename(payload);
     const dataUrl = `data:application/pdf;base64,${pdfResult.data}`;
 
     nextExpectedFilename = filename;

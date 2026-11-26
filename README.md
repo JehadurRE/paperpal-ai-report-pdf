@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-0f766e.svg)](LICENSE)
 [![Privacy: 100% Local](https://img.shields.io/badge/Privacy-100%25%20Local%20%2F%20No%20Tracking-051e57.svg)](#privacy--permissions)
 
-A lightweight, privacy-first **Manifest V3 Chrome extension** that exports the full visible **Paperpal AI Detection** report (`edit.paperpal.com/ai-detector/report/...`) into a clean, searchable, multi-page vector PDF in under a second—without scrollable container clipping.
+A lightweight, privacy-first **Manifest V3 Chrome extension** that exports visible **Paperpal AI Detection** reports (`edit.paperpal.com/ai-detector/report/...`) and **Plagiarism Free Overview** cards (`edit.paperpal.com/p/free-report/...`) into clean, searchable vector PDFs in under a second—without scrollable container clipping.
 
 ---
 
@@ -60,10 +60,13 @@ This extension is strictly a **print-friendly formatter** for content already di
 
 ## Usage
 
-Open any Paperpal AI Detection report at `https://edit.paperpal.com/ai-detector/report/...`:
+Open any supported Paperpal report page:
+- **AI Detection Report:** `https://edit.paperpal.com/ai-detector/report/...` (exports the full multi-page highlighted manuscript + score card + highlight key)
+- **Plagiarism Free Overview:** `https://edit.paperpal.com/p/free-report/...` (exports a clean 1-page summary PDF with the visible similarity range, document name, and unmasked top sources)
 
+Then export either way:
 - **From the page:** Click the **Export PDF** pill in the bottom-right corner for an instant download, or click **Preview** to inspect/print/save as HTML.
-- **From the toolbar:** Click the extension icon to see live report status (detected AI score, title, paragraph count, coverage), adjust PDF preferences, and click **Download PDF** or **Open Print Preview**.
+- **From the toolbar:** Click the extension icon to see live report status, adjust PDF preferences, and click **Download PDF** or **Open Print Preview**.
 
 ---
 

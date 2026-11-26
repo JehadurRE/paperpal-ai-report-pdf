@@ -9,7 +9,10 @@
   let dismissedForUrl = null;
 
   function isReportRoute() {
-    return location.pathname.startsWith("/ai-detector/report/");
+    return (
+      location.pathname.startsWith("/ai-detector/report/") ||
+      location.pathname.startsWith("/p/free-report/")
+    );
   }
 
   function removeWidget() {

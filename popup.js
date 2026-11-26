@@ -57,11 +57,14 @@ async function init() {
   activeTabId = tab.id;
 
   const url = tab.url || "";
-  if (!url.startsWith("https://edit.paperpal.com/ai-detector/report/")) {
+  const isSupported =
+    url.startsWith("https://edit.paperpal.com/ai-detector/report/") ||
+    url.startsWith("https://edit.paperpal.com/p/free-report/");
+  if (!isSupported) {
     statusCard.className = "status-card warn";
-    statusTitle.textContent = "Not a Paperpal AI Detection report";
+    statusTitle.textContent = "Not a supported Paperpal report";
     statusMeta.textContent =
-      "Open a report at edit.paperpal.com/ai-detector/report/... and click this icon again.";
+      "Open an AI Detection report (/ai-detector/report/...) or Plagiarism Overview (/p/free-report/...) and click this icon again.";
     return;
   }
 
@@ -87,10 +90,17 @@ async function init() {
 
     cachedReport = result;
     statusCard.className = "status-card ok";
-    const score = result.summary.scoreValue ? `${result.summary.scoreValue}% AI Identified` : "Report detected";
-    statusTitle.textContent = score;
-    const coverage = result.summary.wordsScannedText || `${result.approxWordCount} words`;
-    statusMeta.textContent = `${result.docTitle}\n${result.paragraphCount} paragraphs • ${coverage}`;
+    if (result.reportKind === "plagiarism-overview") {
+      const p = result.plagiarism || {};
+      statusTitle.textContent = `${p.rangeText || "—"} Similarity Overview`;
+      const srcCount = (p.visibleSources || []).length;
+      statusMeta.textContent = `${result.docFilename || result.docTitle}\n${srcCount} visible sources • Free Overview`;
+    } else {
+      const score = result.summary.scoreValue ? `${result.summary.scoreValue}% AI Identified` : "Report detected";
+      statusTitle.textContent = score;
+      const coverage = result.summary.wordsScannedText || `${result.approxWordCount} words`;
+      statusMeta.textContent = `${result.docTitle}\n${result.paragraphCount} paragraphs • ${coverage}`;
+    }
     btnDownloadPdf.disabled = false;
     btnOpenPreview.disabled = false;
   } catch (err) {
