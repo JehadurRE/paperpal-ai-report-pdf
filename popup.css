@@ -1,0 +1,169 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 330px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  background: #f8fafc;
+  color: #051e57;
+}
+
+.popup {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.header {
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 10px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+}
+
+h1 {
+  font-size: 14.5px;
+  margin: 0 0 2px 0;
+  color: #051e57;
+}
+
+.sub {
+  margin: 0;
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.status-card {
+  background: #ffffff;
+  border: 1px solid #d9e2f3;
+  border-radius: 9px;
+  padding: 10px 12px;
+}
+
+.status-card.ok {
+  border-color: #93c5fd;
+  background: #f0f6ff;
+}
+
+.status-card.warn {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+.status-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #051e57;
+  margin-bottom: 3px;
+}
+
+.status-meta {
+  font-size: 11.5px;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.options {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.opt-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.opt-row select {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
+  color: #051e57;
+  background: #ffffff;
+}
+
+.opt-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: #334155;
+}
+
+.opt-check input {
+  accent-color: #1c4dc0;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn {
+  width: 100%;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  background: #1c4dc0;
+  color: #ffffff;
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: #163fa0;
+}
+
+.btn.secondary {
+  background: #ffffff;
+  color: #051e57;
+  border-color: #cbd5e1;
+}
+
+.btn.secondary:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.feedback {
+  font-size: 12px;
+  line-height: 1.4;
+  min-height: 16px;
+  color: #0f766e;
+}
+
+.feedback.error {
+  color: #b91c1c;
+}

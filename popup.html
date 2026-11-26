@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Paperpal Visible Report PDF Exporter</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="popup">
+    <header class="header">
+      <div class="brand">
+        <img src="icons/icon48.png" alt="" class="logo" />
+        <div>
+          <h1>Paperpal PDF Exporter</h1>
+          <p class="sub">Full visible report &bull; zero scroll clipping</p>
+        </div>
+      </div>
+    </header>
+
+    <section class="status-card" id="statusCard">
+      <div class="status-title" id="statusTitle">Checking current tab...</div>
+      <div class="status-meta" id="statusMeta"></div>
+    </section>
+
+    <section class="options">
+      <label class="opt-row">
+        <span>Page size</span>
+        <select id="optPageSize">
+          <option value="letter">US Letter (8.5 &times; 11 in)</option>
+          <option value="a4">A4 (210 &times; 297 mm)</option>
+        </select>
+      </label>
+
+      <label class="opt-check">
+        <input type="checkbox" id="optIncludeSummary" checked />
+        <span>Include score summary &amp; color key</span>
+      </label>
+
+      <label class="opt-check">
+        <input type="checkbox" id="optIncludeSourceFooter" checked />
+        <span>Include source URL note at end</span>
+      </label>
+
+      <label class="opt-check">
+        <input type="checkbox" id="optSaveAs" />
+        <span>Ask where to save PDF each time</span>
+      </label>
+    </section>
+
+    <section class="actions">
+      <button id="btnDownloadPdf" class="btn primary" disabled>
+        Download PDF
+      </button>
+      <button id="btnOpenPreview" class="btn secondary" disabled>
+        Open Print Preview
+      </button>
+    </section>
+
+    <div class="feedback" id="feedback"></div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

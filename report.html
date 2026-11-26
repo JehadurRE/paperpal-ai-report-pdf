@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Paperpal - AI Detection Check Report</title>
+  <link rel="stylesheet" href="report.css" />
+  <style id="dynamicPageStyle"></style>
+</head>
+<body>
+  <div class="preview-toolbar no-print" id="previewToolbar" hidden>
+    <div class="tb-left">
+      <strong>Paperpal Visible Report Preview</strong>
+      <span id="tbMeta" class="tb-meta"></span>
+    </div>
+    <div class="tb-actions">
+      <button id="tbDownloadPdf" class="tb-btn primary">Download PDF</button>
+      <button id="tbPrint" class="tb-btn">Print / Save as PDF</button>
+      <button id="tbDownloadHtml" class="tb-btn">Download HTML</button>
+    </div>
+  </div>
+
+  <div class="page-sheet" id="reportRoot">
+    <div class="loading" id="loadingState">Rendering report...</div>
+  </div>
+
+  <script src="report-builder.js"></script>
+  <script src="report.js"></script>
+</body>
+</html>
